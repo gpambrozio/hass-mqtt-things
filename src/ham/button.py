@@ -9,6 +9,12 @@ logger = logging.getLogger(__name__)
 
 class Button(Thing):
     """Basic class for a Button entity."""
+    icon: str
+
+    config_fields = [
+        "icon"
+    ]
+
     @property
     def component(self):
         return "button"
