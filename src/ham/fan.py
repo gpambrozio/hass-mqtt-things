@@ -32,7 +32,6 @@ class Fan(Thing):
         pass
 
     def raw_callback(self, topic, payload):
-        print("Here: %s %s" % (topic, payload))
         if payload == b'ON':
             self._state = True
             return self.callback(True)
@@ -101,7 +100,6 @@ class PercentageOptimisticFan(BinaryOptimisticFan):
         self.speed = speed
 
     def raw_speed_callback(self, topic: str, raw_speed: bytes):
-        print("Hey!")
         self.speed_callback(int(raw_speed.decode("utf-8")))
 
     def get_config(self):
