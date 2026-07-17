@@ -104,6 +104,8 @@ class MqttManager(Thread):
         self.unique_identifier = unique_identifier or self.get_mac()
         self.device_info = self._gen_device_info()
 
+        self.client.message_callback_add(self.availability_topic, self._on_availability_message)
+
         logger.debug("Initialization parameters: node_id=%s, base_topic=%s, discovery_prefix=%s, name=%s",
                      self.node_id, self.base_topic, self.discovery_prefix, self.name)
 
@@ -131,6 +133,19 @@ class MqttManager(Thread):
         The derived class should reimplement this.
         """
         pass
+
+    def _on_availability_message(self, client, userdata, msg):
+        """Self-heal the availability topic.
+
+        If the host dies without a clean disconnect (e.g. a power cycle), the
+        broker may publish the previous session's retained "offline" last-will
+        AFTER the new session already published "online", leaving the retained
+        state "offline" forever and all entities unavailable in Home Assistant.
+        """
+        if msg.payload == b"offline":
+            logger.warning("Availability topic went 'offline' while connected "
+                           "(stale last-will?), republishing 'online'")
+            client.publish(self.availability_topic, "online", retain=True)
 
     @staticmethod
     def _format_mac(mac: str) -> str:
@@ -171,6 +186,7 @@ class MqttManager(Thread):
             (f"{ self.base_topic }/+/set", 0),  # Most things use `set`
             (f"{ self.base_topic }/+/+/set", 0),  # Some things are nested (at least: fans)
             (f"{ self.base_topic }/+/press", 0),  # Buttons use `press`
+            (self.availability_topic, 0),  # Watch our own availability to self-heal stale last-wills
         ]
 
     def on_connect(self, _, userdata, flags, rc):
